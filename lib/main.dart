@@ -6,14 +6,6 @@ import 'firebase_options.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  // var db = FirebaseFirestore.instance;
-
-
-  // await db.collection("reminder").get().then((event) {
-  //   for (var doc in event.docs) {
-  //     print("${doc.id} => ${doc.data()}");
-  //   }
-  // });
   runApp(const MainApp());
 }
 
@@ -36,7 +28,6 @@ class ReminderListScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text("My Reminders")),
       body: StreamBuilder<QuerySnapshot>(
-        // 👇 Real-time updates from Firestore
         stream: db.collection("reminder").snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
@@ -46,18 +37,18 @@ class ReminderListScreen extends StatelessWidget {
             return const Center(child: CircularProgressIndicator());
           }
 
-          // Extract the documents
           final reminders = snapshot.data!.docs;
 
           if (reminders.isEmpty) {
             return const Center(child: Text("No reminders yet!"));
           }
 
-          // 👇 Build a scrollable list
           return ListView.builder(
             itemCount: reminders.length,
             itemBuilder: (context, index) {
-              final data = reminders[index].data() as Map<String, dynamic>;
+              final doc = reminders[index];
+              final data = doc.data() as Map<String, dynamic>;
+
               return Column(
                 children: [
                   ListTile(
@@ -65,9 +56,50 @@ class ReminderListScreen extends StatelessWidget {
                     title: Text(data['title'] ?? 'Untitled'),
                     subtitle: Text(data['description'] ?? ''),
                     trailing: Text(data['datetime'].toString()),
-                    onTap: () {
-                      // Handle tap if needed
-                      print(data['title']);
+                    onLongPress: () async {
+                      final selected = await showModalBottomSheet<String>(
+                        context: context,
+                        builder: (context) {
+                          return SafeArea(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                ListTile(
+                                  leading: const Icon(Icons.edit),
+                                  title: const Text('Edit'),
+                                  onTap: () => Navigator.pop(context, 'edit'),
+                                ),
+                                ListTile(
+                                  leading: const Icon(
+                                    Icons.delete,
+                                    color: Colors.red,
+                                  ),
+                                  title: const Text('Delete'),
+                                  onTap: () => Navigator.pop(context, 'delete'),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      );
+
+                      if (selected == 'delete') {
+                        await db.collection('reminder').doc(doc.id).delete();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Reminder deleted 🗑️')),
+                        );
+                      } else if (selected == 'edit') {
+                        // 👇 Navigate to edit form
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => EditReminder(
+                              docId: doc.id,
+                              existingData: data,
+                            ),
+                          ),
+                        );
+                      }
                     },
                   ),
                   const Divider(),
@@ -81,15 +113,16 @@ class ReminderListScreen extends StatelessWidget {
         onPressed: () {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => AddReminder()),
+            MaterialPageRoute(builder: (context) => const AddReminder()),
           );
-          // Handle adding a new reminder
         },
         child: const Icon(Icons.add),
       ),
     );
   }
 }
+
+// ======================== ADD FORM ========================
 
 class AddReminder extends StatefulWidget {
   const AddReminder({super.key});
@@ -103,10 +136,106 @@ class _AddReminderState extends State<AddReminder> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Add Reminder")),
-      body: ReminderForm(),
+      body: const ReminderForm(),
     );
   }
 }
+
+// ======================== EDIT FORM ========================
+
+class EditReminder extends StatefulWidget {
+  final String docId;
+  final Map<String, dynamic> existingData;
+
+  const EditReminder({
+    super.key,
+    required this.docId,
+    required this.existingData,
+  });
+
+  @override
+  State<EditReminder> createState() => _EditReminderState();
+}
+
+class _EditReminderState extends State<EditReminder> {
+  final _formKey = GlobalKey<FormState>();
+  final db = FirebaseFirestore.instance;
+
+  late TextEditingController _titleController;
+  late TextEditingController _descController;
+  late TextEditingController _datetimeController;
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController = TextEditingController(text: widget.existingData['title']);
+    _descController = TextEditingController(text: widget.existingData['description']);
+    _datetimeController = TextEditingController(text: widget.existingData['datetime'].toString());
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _descController.dispose();
+    _datetimeController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _updateReminder() async {
+    if (_formKey.currentState!.validate()) {
+      await db.collection('reminder').doc(widget.docId).update({
+        'title': _titleController.text,
+        'description': _descController.text,
+        'datetime': _datetimeController.text,
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Reminder updated! ✏️')),
+      );
+      Navigator.pop(context);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("Edit Reminder")),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            children: [
+              TextFormField(
+                controller: _titleController,
+                decoration: const InputDecoration(labelText: 'Title'),
+                validator: (value) =>
+                    value == null || value.isEmpty ? 'Please enter a title' : null,
+              ),
+              TextFormField(
+                controller: _descController,
+                decoration: const InputDecoration(labelText: 'Description'),
+                validator: (value) =>
+                    value == null || value.isEmpty ? 'Please enter a description' : null,
+              ),
+              TextFormField(
+                controller: _datetimeController,
+                decoration: const InputDecoration(labelText: 'Datetime'),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: _updateReminder,
+                child: const Text('Update'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ======================== ADD FORM WIDGET ========================
 
 class ReminderForm extends StatefulWidget {
   const ReminderForm({super.key});
@@ -117,12 +246,11 @@ class ReminderForm extends StatefulWidget {
 
 class _ReminderFormState extends State<ReminderForm> {
   final _formKey = GlobalKey<FormState>();
+  final db = FirebaseFirestore.instance;
 
   final _titleController = TextEditingController();
   final _descController = TextEditingController();
   final _datetimeController = TextEditingController();
-
-  final db = FirebaseFirestore.instance;
 
   @override
   void dispose() {
@@ -134,67 +262,53 @@ class _ReminderFormState extends State<ReminderForm> {
 
   void _submitForm() async {
     if (_formKey.currentState!.validate()) {
-      try {
-        await db.collection("reminder").add({
-          "title": _titleController.text,
-          "description": _descController.text,
-          "datetime": _datetimeController.text,
-          "createdAt": Timestamp.now(),
-        });
+      await db.collection("reminder").add({
+        "title": _titleController.text,
+        "description": _descController.text,
+        "datetime": _datetimeController.text,
+        "createdAt": Timestamp.now(),
+      });
 
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Reminder added! 🎉')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Reminder added! 🎉')),
+      );
 
-        Navigator.pop(context); // Go back to list
-      } catch (e) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error adding reminder: $e')));
-      }
+      Navigator.pop(context);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Form(
-      key: _formKey,
-      child: Column(
-        children: [
-          SizedBox(
-            child: TextFormField(
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter some text';
-                }
-                return null;
-              },
-              decoration: const InputDecoration(labelText: 'Title'),
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          children: [
+            TextFormField(
               controller: _titleController,
+              decoration: const InputDecoration(labelText: 'Title'),
+              validator: (value) =>
+                  value == null || value.isEmpty ? 'Please enter a title' : null,
             ),
-          ),
-          TextFormField(
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Please enter some text';
-              }
-              return null;
-            },
-            decoration: const InputDecoration(labelText: 'Description'),
-            controller: _descController,
-          ),
-          TextFormField(
-            decoration: const InputDecoration(labelText: 'Datetime'),
-            controller: _datetimeController,
-          ),
-          ElevatedButton(
-            onPressed: _submitForm,
-            child: const Text('Submit'),
-          ),
-        ],
+            TextFormField(
+              controller: _descController,
+              decoration: const InputDecoration(labelText: 'Description'),
+              validator: (value) =>
+                  value == null || value.isEmpty ? 'Please enter a description' : null,
+            ),
+            TextFormField(
+              controller: _datetimeController,
+              decoration: const InputDecoration(labelText: 'Datetime'),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _submitForm,
+              child: const Text('Submit'),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
-
-// C:\Users\00015403\AppData\Local\Pub\Cache\bin
