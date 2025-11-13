@@ -6,30 +6,14 @@ import 'firebase_options.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  var db = FirebaseFirestore.instance;
+  // var db = FirebaseFirestore.instance;
 
-  // Create a new user with a first and last name
-  final reminder = <String, dynamic>{
-    "id": 3,
-    "title": "Ada",
-    "description": "Lovelace",
-    "datetime": 1815,
-  };
 
-  // Add a new document with a generated ID
-  db
-      .collection("reminder")
-      .add(reminder)
-      .then(
-        (DocumentReference doc) =>
-            print('DocumentSnapshot added with ID: ${doc.id}'),
-      );
-
-  await db.collection("reminder").get().then((event) {
-    for (var doc in event.docs) {
-      print("${doc.id} => ${doc.data()}");
-    }
-  });
+  // await db.collection("reminder").get().then((event) {
+  //   for (var doc in event.docs) {
+  //     print("${doc.id} => ${doc.data()}");
+  //   }
+  // });
   runApp(const MainApp());
 }
 
@@ -38,9 +22,7 @@ class MainApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
-      home: ReminderListScreen(),
-    );
+    return const MaterialApp(home: ReminderListScreen());
   }
 }
 
@@ -95,7 +77,124 @@ class ReminderListScreen extends StatelessWidget {
           );
         },
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => AddReminder()),
+          );
+          // Handle adding a new reminder
+        },
+        child: const Icon(Icons.add),
+      ),
     );
   }
 }
+
+class AddReminder extends StatefulWidget {
+  const AddReminder({super.key});
+
+  @override
+  State<AddReminder> createState() => _AddReminderState();
+}
+
+class _AddReminderState extends State<AddReminder> {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("Add Reminder")),
+      body: ReminderForm(),
+    );
+  }
+}
+
+class ReminderForm extends StatefulWidget {
+  const ReminderForm({super.key});
+
+  @override
+  State<ReminderForm> createState() => _ReminderFormState();
+}
+
+class _ReminderFormState extends State<ReminderForm> {
+  final _formKey = GlobalKey<FormState>();
+
+  final _titleController = TextEditingController();
+  final _descController = TextEditingController();
+  final _datetimeController = TextEditingController();
+
+  final db = FirebaseFirestore.instance;
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _descController.dispose();
+    _datetimeController.dispose();
+    super.dispose();
+  }
+
+  void _submitForm() async {
+    if (_formKey.currentState!.validate()) {
+      try {
+        await db.collection("reminder").add({
+          "title": _titleController.text,
+          "description": _descController.text,
+          "datetime": _datetimeController.text,
+          "createdAt": Timestamp.now(),
+        });
+
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Reminder added! 🎉')));
+
+        Navigator.pop(context); // Go back to list
+      } catch (e) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error adding reminder: $e')));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Form(
+      key: _formKey,
+      child: Column(
+        children: [
+          SizedBox(
+            child: TextFormField(
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Please enter some text';
+                }
+                return null;
+              },
+              decoration: const InputDecoration(labelText: 'Title'),
+              controller: _titleController,
+            ),
+          ),
+          TextFormField(
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Please enter some text';
+              }
+              return null;
+            },
+            decoration: const InputDecoration(labelText: 'Description'),
+            controller: _descController,
+          ),
+          TextFormField(
+            decoration: const InputDecoration(labelText: 'Datetime'),
+            controller: _datetimeController,
+          ),
+          ElevatedButton(
+            onPressed: _submitForm,
+            child: const Text('Submit'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // C:\Users\00015403\AppData\Local\Pub\Cache\bin
