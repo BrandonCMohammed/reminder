@@ -1,11 +1,21 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:reminder/noti_service.dart';
 import 'firebase_options.dart';
 
 void main() async {
+
+  // Widget binding
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Firebase initialization
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // Notification initialization
+  NotiService().initNotification();
+
+  
   runApp(const MainApp());
 }
 
@@ -93,10 +103,8 @@ class ReminderListScreen extends StatelessWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => EditReminder(
-                              docId: doc.id,
-                              existingData: data,
-                            ),
+                            builder: (context) =>
+                                EditReminder(docId: doc.id, existingData: data),
                           ),
                         );
                       }
@@ -111,10 +119,11 @@ class ReminderListScreen extends StatelessWidget {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const AddReminder()),
-          );
+          // Navigator.push(
+          //   context,
+          //   MaterialPageRoute(builder: (context) => const AddReminder()),
+          // );
+          NotiService().showNotification(id:1, title: "title", body: "body");
         },
         child: const Icon(Icons.add),
       ),
@@ -168,9 +177,15 @@ class _EditReminderState extends State<EditReminder> {
   @override
   void initState() {
     super.initState();
-    _titleController = TextEditingController(text: widget.existingData['title']);
-    _descController = TextEditingController(text: widget.existingData['description']);
-    _datetimeController = TextEditingController(text: widget.existingData['datetime'].toString());
+    _titleController = TextEditingController(
+      text: widget.existingData['title'],
+    );
+    _descController = TextEditingController(
+      text: widget.existingData['description'],
+    );
+    _datetimeController = TextEditingController(
+      text: widget.existingData['datetime'].toString(),
+    );
   }
 
   @override
@@ -189,9 +204,9 @@ class _EditReminderState extends State<EditReminder> {
         'datetime': _datetimeController.text,
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Reminder updated! ✏️')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Reminder updated! ✏️')));
       Navigator.pop(context);
     }
   }
@@ -209,14 +224,16 @@ class _EditReminderState extends State<EditReminder> {
               TextFormField(
                 controller: _titleController,
                 decoration: const InputDecoration(labelText: 'Title'),
-                validator: (value) =>
-                    value == null || value.isEmpty ? 'Please enter a title' : null,
+                validator: (value) => value == null || value.isEmpty
+                    ? 'Please enter a title'
+                    : null,
               ),
               TextFormField(
                 controller: _descController,
                 decoration: const InputDecoration(labelText: 'Description'),
-                validator: (value) =>
-                    value == null || value.isEmpty ? 'Please enter a description' : null,
+                validator: (value) => value == null || value.isEmpty
+                    ? 'Please enter a description'
+                    : null,
               ),
               TextFormField(
                 controller: _datetimeController,
@@ -269,11 +286,55 @@ class _ReminderFormState extends State<ReminderForm> {
         "createdAt": Timestamp.now(),
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Reminder added! 🎉')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Reminder added! 🎉')));
 
       Navigator.pop(context);
+    }
+  }
+
+  // Datetime picker widget testing
+
+   DateTime? selectedDate;
+
+  Future<void> _selectDate() async {
+    final DateTime? pickedDate = await showDatePicker(
+      context: context,
+      initialDate: DateTime(2021, 7, 25),
+      firstDate: DateTime(2021),
+      lastDate: DateTime(2022),
+    );
+
+    setState(() {
+      selectedDate = pickedDate;
+    });
+  }
+
+  // Time of day picker widget testing
+
+  TimeOfDay? selectedTime;
+
+  Future<void> _selectTime() async {
+    final TimeOfDay? pickedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+    );
+
+    setState(() {
+      selectedTime = pickedTime;
+    });
+  }
+
+  void _selectDataTime()async{
+    await _selectDate();
+    await _selectTime();
+    if (selectedDate != null && selectedTime != null) {
+      final datetimeString =
+          '${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year} ${selectedTime!.hour}:${selectedTime!.minute}';
+      _datetimeController.text = datetimeString;
+      print(selectedDate);
+      print( selectedTime);
     }
   }
 
@@ -288,24 +349,26 @@ class _ReminderFormState extends State<ReminderForm> {
             TextFormField(
               controller: _titleController,
               decoration: const InputDecoration(labelText: 'Title'),
-              validator: (value) =>
-                  value == null || value.isEmpty ? 'Please enter a title' : null,
+              validator: (value) => value == null || value.isEmpty
+                  ? 'Please enter a title'
+                  : null,
             ),
             TextFormField(
               controller: _descController,
               decoration: const InputDecoration(labelText: 'Description'),
-              validator: (value) =>
-                  value == null || value.isEmpty ? 'Please enter a description' : null,
+              validator: (value) => value == null || value.isEmpty
+                  ? 'Please enter a description'
+                  : null,
             ),
             TextFormField(
               controller: _datetimeController,
               decoration: const InputDecoration(labelText: 'Datetime'),
+              onTap: _selectDataTime,
+              readOnly: true,
             ),
+
             const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _submitForm,
-              child: const Text('Submit'),
-            ),
+            ElevatedButton(onPressed: _submitForm, child: const Text('Submit')),
           ],
         ),
       ),
