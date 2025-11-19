@@ -3,19 +3,26 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:reminder/noti_service.dart';
 import 'firebase_options.dart';
+import 'package:timezone/data/latest.dart' as tz;
 
 void main() async {
-
   // Widget binding
   WidgetsFlutterBinding.ensureInitialized();
+
+
+  
 
   // Firebase initialization
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // Notification initialization
-  NotiService().initNotification();
+  // Timezone initialization
+  tz.initializeTimeZones();
 
-  
+
+  // Notification initialization
+  await NotiService().initNotification();
+
+
   runApp(const MainApp());
 }
 
@@ -118,12 +125,19 @@ class ReminderListScreen extends StatelessWidget {
         },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
+        onPressed: () async {
           // Navigator.push(
           //   context,
           //   MaterialPageRoute(builder: (context) => const AddReminder()),
           // );
-          NotiService().showNotification(id:1, title: "title", body: "body");
+          // NotiService().showNotification(id:1, title: "title", body: "body");
+
+          await NotiService().scheduleNotification(
+            id: 5,
+            title: "Reminder",
+            body: "Drink water!",
+            scheduledDate: DateTime.now().add(Duration(seconds: 7)),
+          );
         },
         child: const Icon(Icons.add),
       ),
@@ -296,7 +310,7 @@ class _ReminderFormState extends State<ReminderForm> {
 
   // Datetime picker widget testing
 
-   DateTime? selectedDate;
+  DateTime? selectedDate;
 
   Future<void> _selectDate() async {
     final DateTime? pickedDate = await showDatePicker(
@@ -326,7 +340,7 @@ class _ReminderFormState extends State<ReminderForm> {
     });
   }
 
-  void _selectDataTime()async{
+  void _selectDataTime() async {
     await _selectDate();
     await _selectTime();
     if (selectedDate != null && selectedTime != null) {
@@ -334,7 +348,7 @@ class _ReminderFormState extends State<ReminderForm> {
           '${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year} ${selectedTime!.hour}:${selectedTime!.minute}';
       _datetimeController.text = datetimeString;
       print(selectedDate);
-      print( selectedTime);
+      print(selectedTime);
     }
   }
 
