@@ -290,8 +290,10 @@ class _ReminderFormState extends State<ReminderForm> {
   }
 
   void _submitForm() async {
+    final int notificationID = DateTime.now().millisecondsSinceEpoch.hashCode;
     if (_formKey.currentState!.validate()) {
       await db.collection("reminder").add({
+        'notificationID': notificationID,
         "title": _titleController.text,
         "description": _descController.text,
         "datetime": _datetimeController.text,
@@ -299,7 +301,7 @@ class _ReminderFormState extends State<ReminderForm> {
       });
 
       await NotiService().scheduleNotification(
-        id: 1,
+        id: notificationID,
         title: _titleController.text,
         body: _descController.text,
         scheduledDate: DateTime.parse(_datetimeController.text),
