@@ -97,6 +97,10 @@ class ReminderListScreen extends StatelessWidget {
 
                       if (selected == 'delete') {
                         await db.collection('reminder').doc(doc.id).delete();
+                        await NotiService().cancelNotification(
+                          data['notificationID'],
+                        );
+
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('Reminder deleted 🗑️')),
                         );
