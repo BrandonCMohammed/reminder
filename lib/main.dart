@@ -9,19 +9,14 @@ void main() async {
   // Widget binding
   WidgetsFlutterBinding.ensureInitialized();
 
-
-  
-
   // Firebase initialization
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   // Timezone initialization
   tz.initializeTimeZones();
 
-
   // Notification initialization
   await NotiService().initNotification();
-
 
   runApp(const MainApp());
 }
@@ -126,18 +121,21 @@ class ReminderListScreen extends StatelessWidget {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
-          // Navigator.push(
-          //   context,
-          //   MaterialPageRoute(builder: (context) => const AddReminder()),
-          // );
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const AddReminder()),
+          );
+
+          // To test instant notification
           // NotiService().showNotification(id:1, title: "title", body: "body");
 
-          await NotiService().scheduleNotification(
-            id: 5,
-            title: "Reminder",
-            body: "Drink water!",
-            scheduledDate: DateTime.now().add(Duration(seconds: 7)),
-          );
+          // To test scheduled notification
+          // await NotiService().scheduleNotification(
+          //   id: 5,
+          //   title: "Reminder",
+          //   body: "Drink water!",
+          //   scheduledDate: DateTime.now().add(Duration(seconds: 7)),
+          // );
         },
         child: const Icon(Icons.add),
       ),
@@ -300,6 +298,13 @@ class _ReminderFormState extends State<ReminderForm> {
         "createdAt": Timestamp.now(),
       });
 
+      await NotiService().scheduleNotification(
+        id: 1,
+        title: _titleController.text,
+        body: _descController.text,
+        scheduledDate: DateTime.parse(_datetimeController.text),
+      );
+
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Reminder added! 🎉')));
@@ -315,9 +320,9 @@ class _ReminderFormState extends State<ReminderForm> {
   Future<void> _selectDate() async {
     final DateTime? pickedDate = await showDatePicker(
       context: context,
-      initialDate: DateTime(2021, 7, 25),
-      firstDate: DateTime(2021),
-      lastDate: DateTime(2022),
+      initialDate: DateTime.now(),
+      firstDate: DateTime.now(),
+      lastDate: DateTime(2100),
     );
 
     setState(() {
@@ -347,8 +352,15 @@ class _ReminderFormState extends State<ReminderForm> {
       final datetimeString =
           '${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year} ${selectedTime!.hour}:${selectedTime!.minute}';
       _datetimeController.text = datetimeString;
-      print(selectedDate);
-      print(selectedTime);
+      final combinedDateTime = DateTime(
+        selectedDate!.year,
+        selectedDate!.month,
+        selectedDate!.day,
+        selectedTime!.hour,
+        selectedTime!.minute,
+      );
+      print(combinedDateTime);
+      _datetimeController.text = combinedDateTime.toString();
     }
   }
 
