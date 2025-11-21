@@ -213,12 +213,27 @@ class _EditReminderState extends State<EditReminder> {
   }
 
   Future<void> _updateReminder() async {
+    // Cancel current notification
+    // await NotiService().cancelNotification(
+    //   widget.existingData['notificationID'],
+    // );
+
+    // print("NOTIFICATION ID: ${widget.existingData}");
+
+    // Update firebase with new information
     if (_formKey.currentState!.validate()) {
       await db.collection('reminder').doc(widget.docId).update({
         'title': _titleController.text,
         'description': _descController.text,
         'datetime': _datetimeController.text,
       });
+
+      // await NotiService().scheduleNotification(
+      //   id: widget.existingData['notificationID'],
+      //   title: _titleController.text,
+      //   body: _descController.text,
+      //   scheduledDate: DateTime.parse(_datetimeController.text),
+      // );
 
       ScaffoldMessenger.of(
         context,
@@ -365,7 +380,7 @@ class _ReminderFormState extends State<ReminderForm> {
         selectedTime!.hour,
         selectedTime!.minute,
       );
-      print(combinedDateTime);
+      // print(combinedDateTime);
       _datetimeController.text = combinedDateTime.toString();
     }
   }
