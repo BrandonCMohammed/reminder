@@ -212,11 +212,60 @@ class _EditReminderState extends State<EditReminder> {
     super.dispose();
   }
 
+  DateTime? selectedDate;
+
+  Future<void> _selectDate() async {
+    final DateTime? pickedDate = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime.now(),
+      lastDate: DateTime(2100),
+    );
+
+    setState(() {
+      selectedDate = pickedDate;
+    });
+  }
+
+  // Time of day picker widget testing
+
+  TimeOfDay? selectedTime;
+
+  Future<void> _selectTime() async {
+    final TimeOfDay? pickedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+    );
+
+    setState(() {
+      selectedTime = pickedTime;
+    });
+  }
+
+  void _selectDataTime() async {
+    await _selectDate();
+    await _selectTime();
+    if (selectedDate != null && selectedTime != null) {
+      final datetimeString =
+          '${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year} ${selectedTime!.hour}:${selectedTime!.minute}';
+      _datetimeController.text = datetimeString;
+      final combinedDateTime = DateTime(
+        selectedDate!.year,
+        selectedDate!.month,
+        selectedDate!.day,
+        selectedTime!.hour,
+        selectedTime!.minute,
+      );
+      // print(combinedDateTime);
+      _datetimeController.text = combinedDateTime.toString();
+    }
+  }
+
   Future<void> _updateReminder() async {
     // Cancel current notification
-    // await NotiService().cancelNotification(
-    //   widget.existingData['notificationID'],
-    // );
+    await NotiService().cancelNotification(
+      widget.existingData['notificationID'],
+    );
 
     // print("NOTIFICATION ID: ${widget.existingData}");
 
@@ -228,12 +277,12 @@ class _EditReminderState extends State<EditReminder> {
         'datetime': _datetimeController.text,
       });
 
-      // await NotiService().scheduleNotification(
-      //   id: widget.existingData['notificationID'],
-      //   title: _titleController.text,
-      //   body: _descController.text,
-      //   scheduledDate: DateTime.parse(_datetimeController.text),
-      // );
+      await NotiService().scheduleNotification(
+        id: widget.existingData['notificationID'],
+        title: _titleController.text,
+        body: _descController.text,
+        scheduledDate: DateTime.parse(_datetimeController.text),
+      );
 
       ScaffoldMessenger.of(
         context,
@@ -269,6 +318,7 @@ class _EditReminderState extends State<EditReminder> {
               TextFormField(
                 controller: _datetimeController,
                 decoration: const InputDecoration(labelText: 'Datetime'),
+                onTap: _selectDataTime,
               ),
               const SizedBox(height: 20),
               ElevatedButton(
